@@ -435,7 +435,7 @@ class UsersAdmin(admin.ModelAdmin): # ModelAdmin을 상속
 ---
 __Board Admin Panel 관리__
 
-0. board model 정의
+1. board model 정의
 
 ```
 # models.py
@@ -453,10 +453,156 @@ class Board(models.Model):
         return self.title
 ```
 
-1. `list_display` : 관리자 페이지 목록에 표시할 필드 지정
+2. admin.py 최종 코드
+
 ```
+# admin.py
+from django.contrib import admin
+from .models import Board
+
+@admin.register(Board)
 class BoardAdmin(admin.ModelAdmin):
-    list_display = ('title', 'writer', 'date', 'likes', 'content')
+    list_display = ('title', 'writer', 'date', 'likes', 'content') # 관리자 페이지의 목록에 표시할 필드 지정
+    list_filter = ('date', 'writer') # 목록 페이지에서 필터 옵션으로 사용될 필드 지정
+    search_fields = ('title', 'content') # 검색 기능에서 사용할 필드 지정
+        ordering = ('-date',) # 목록 페이지의 기본 정렬 순서 지정
+        readonly_fields = ('writer',) # 읽기 전용 필드 지정
+        fieldsets = (
+            (None, {'fields': ('title', 'content')}),
+            ('추가 옵션', {'fields': ('writer', 'likes', 'reviews'), 'classes': ('collapse',)}),
+            ) # 상세 페이지에서 필드 그룹 지정
+	    list_per_page = 1 # 목록 페이지에 표시할 항목의 수 지정
+
+	    actions = ('increment_likes',) # 사용자 정의 대량 작업 추가
+
+        def increment_likes(self, request, queryset):
+            for board in queryset:
+                board.likes += 1
+                board.save()
+
+        increment_likes.short_description = "선택된 게시글의 좋아요 수 증가"
 ```
 
-2. 
+#### Custom_admin
+* Django에서 제공하는 기능을 활용해 진행
+
+0. users app 생성
+```
+> python manage.py startapp users
+```
+
+1. users/models.py 수정
+```
+from django.contrib.auth.models import AbstactUser
+
+class User(AbstractUser):
+    pass
+```
+
+2. users/admin.py
+```
+from django.contrib.auth,admin import UserAdmin
+
+@admin.register(User)
+class CustiomUserAdmin(UserAdmin):
+    pass
+```
+
+3. config/settings.py
+```
+AUTH_USER_MODEL = "users.User"
+```
+
+4. users/migrations 폴더에 0001,0002로 시작하는 파일, db.sqlite3 삭제
+
+5. makemigrations & migrate
+
+```
+> python manage.py makemigrations
+> python manage.py migrate
+```
+
+6. user create
+```
+> python manage.py createsuperuser
+```
+
+#### Custom User - 지정 데이터로 수정
+
+1. users/models.py 업데이트
+```
+class User(AbstractUser):
+    is_business = model.BooleanField(default=False)
+    grade = models.CharField(max_length=10, default='C')
+```
+2. columns값들이 변경되어 Makemigrations & migrate 
+
+#### Common Model 설정
+
+1. common app 생성
+```
+> python manage.py startapp common
+```
+
+2. common/models.py 수정
+```
+from django.db import models
+
+class CommonModel(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True) # 해당 object 생성 시간 기준
+    updated_at = models.DateTimeField(auto_now=True) # 해당 object 업데이트된 시간 기준
+    
+    # Meta클래스는 권한, 데이터베이스 이름, 단 복수 이름, 추상화, 순서지정 등과 같은 모델에 대한 다양한 사항을 정의하는데 사용
+    class Meta:
+        abstract = True # DB 테이블에 추가 X
+```
+
+3. users를 제외한 각 모델들의 상속 클래스 변경
+```
+# boards/models.py
+
+from django.db import models
+from common.models import CommonModel
+
+
+class Board(CommonModel):
+    title = models.CharField(max_length=30)
+    content = models.TextField()
+		writer = models.CharField(max_length=30)
+    date = models.DateTimeField(auto_now_add=True)
+    likes = models.PositiveIntegerField(default=0)
+    reviews = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return self.title
+```
+
+4. Makemigrations & Migrate
+```
+> python manage.py makemigrations
+> python manage.py migrate
+```
+---
+
+# Day 4 : ORM (Object-Realtional Mapping)
+
+---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
